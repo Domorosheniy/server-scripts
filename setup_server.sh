@@ -102,10 +102,8 @@ echo "--- ДОПОЛНИТЕЛЬНЫЕ ПОРТЫ ---"
 echo "Стандартные порты, которые будут открыты:"
 echo "- HTTP: 80"
 echo "- HTTPS: 443"
-echo "- Доп. веб: 8080, 8443"
-echo "- Панель управления: 54321"
+echo "- Доп. веб: 8080"
 
-PANEL_PORT=54321
 INBOUND_PORTS="443 8443 2053"
 
 read -p "Добавить дополнительные порты? (y/n) [по умолчанию: n]: " -n 1 -r
@@ -123,7 +121,7 @@ echo ""
 echo "=== ПОДТВЕРЖДЕНИЕ НАСТРОЕК ==="
 echo "Имя пользователя: $USER_NAME"
 echo "SSH порт: $SSH_PORT"
-echo "Порты для открытия: $SSH_PORT, 80, 8080, $PANEL_PORT, $INBOUND_PORTS"
+echo "Порты для открытия: $SSH_PORT, 80, 443, 8080, $INBOUND_PORTS"
 echo ""
 read -p "Продолжить настройку? (y/n): " -n 1 -r
 echo
@@ -172,7 +170,7 @@ fi
 chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME/.ssh"
 chmod 700 "/home/$USER_NAME/.ssh"
 
-# Добавляем пользователя в sudoers без пароля (опционально)
+# Добавляем пользователя в sudoers без пароля
 echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$USER_NAME"
 chmod 440 "/etc/sudoers.d/$USER_NAME"
 
@@ -259,10 +257,6 @@ ufw allow 443/tcp comment "HTTPS"
 ufw allow 8080/tcp comment "Web альтернативный"
 echo "[✓] Открыты веб порты: 80, 443, 8080"
 
-# Панель управления
-ufw allow "$PANEL_PORT/tcp" comment "Панель управления"
-echo "[✓] Открыт порт панели: $PANEL_PORT"
-
 # Дополнительные порты
 for port in $INBOUND_PORTS; do
     if [ "$port" != "443" ]; then  # 443 уже открыт
@@ -329,7 +323,6 @@ echo "║"
 echo "║ Открытые порты:"
 echo "║ • SSH: $SSH_PORT"
 echo "║ • Веб: 80, 443, 8080"
-echo "║ • Панель: $PANEL_PORT"
 if [ -n "$INBOUND_PORTS" ]; then
     echo "║ • Дополнительно: $INBOUND_PORTS"
 fi
@@ -356,18 +349,18 @@ ssh -p $SSH_PORT $USER_NAME@$IP_ADDRESS
 - HTTP: 80
 - HTTPS: 443
 - Доп. веб: 8080
-- Панель: $PANEL_PORT
 $(for port in $INBOUND_PORTS; do echo "- $port"; done)
 
 ВАЖНО:
 1. Порт 22 закрыт (если не используется)
 2. Root доступ по SSH запрещён
 3. Настроен fail2ban для защиты
+4. Все настройки сохранены в /var/log/setup_server.log
 EOF
 
 echo "[✓] Подробная информация сохранена в: $INFO_FILE"
 echo "[✓] Логи настройки: /var/log/setup_server.log"
 echo ""
-echo "Перезагрузите сервер для применения всех настроек:"
+echo "Для применения всех настроек рекомендуется перезагрузить сервер:"
 echo "sudo reboot"
 echo "==========================================="
