@@ -62,15 +62,16 @@
 
 🚀 Как использовать (2 шага):
 
-Шаг 1: Подключись к новому серверу как root
-bash
+Шаг 1: Подключись к новому серверу как root:
 
-ssh root@ip_адрес_сервера
+    ssh root@ip_адрес_сервера
 
-Шаг 2: Запусти одну команду
-bash
 
-apt update && apt install -y git && git clone https://github.com/Domorosheniy/server-scripts.git && cd server-scripts && chmod +x setup_server.sh && ./setup_server.sh
+Шаг 2: Запусти одну команду:
+
+    sudo apt update && apt install -y git && git clone https://github.com/Domorosheniy/server-scripts.git && cd server-scripts && chmod +x setup_server.sh && ./setup_server.sh
+
+
 
 Шаг 3: Ответь на простые вопросы:
 
