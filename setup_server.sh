@@ -15,11 +15,11 @@ date
 # Проверяем, установлен ли git. Если нет — устанавливаем
 if ! command -v git &> /dev/null; then
     echo "[+] Устанавливаем git..."
-    if ! apt update -y; then
+    if ! apt-get update -y; then
         echo "[!] Ошибка при обновлении пакетов (apt update)."
         exit 1
     fi
-    if ! apt install -y git; then
+    if ! apt-get install -y git; then
         echo "[!] Ошибка при установке git."
         exit 1
     fi
@@ -146,7 +146,7 @@ apt install -y ca-certificates
 update-ca-certificates
 
 echo "[2/8] Обновление системы..."
-apt update -y && apt upgrade -y -o Dpkg::Options::="--force-confold"
+apt-get update -y && apt-get upgrade -y -o Dpkg::Options::="--force-confold"
 
 echo "[3/8] Создание пользователя $USER_NAME..."
 if ! id "$USER_NAME" &>/dev/null; then
