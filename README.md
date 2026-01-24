@@ -73,8 +73,8 @@
    `sudo reboot`
 
 2. **Проверьте защиту:**
-   `sudo ufw status              # Статус фаервола`
-   `sudo systemctl status fail2ban  # Статус защиты от брутфорса`
+   `sudo ufw status`              # Статус фаервола
+   `sudo systemctl status fail2ban`  # Статус защиты от брутфорса
 
 3. **Информация сохранена в:**
    - `/root/server_info_имя_пользователя.txt` — данные для подключения
