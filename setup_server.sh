@@ -354,14 +354,8 @@ echo "        НАСТРОЙКА ЗАВЕРШЕНА УСПЕШНО!        "
 echo "============================================"
 echo ""
 
-# Получаем IP адрес
-IP_ADDRESS=""
-if command -v curl &> /dev/null; then
-    IP_ADDRESS=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
-fi
-if [ -z "$IP_ADDRESS" ]; then
-    IP_ADDRESS=$(hostname -I | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1 2>/dev/null || echo "НЕИЗВЕСТНО")
-fi
+# Получаем IPv4 адрес (только IPv4)
+IP_ADDRESS=$(curl -s -4 --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s -4 --connect-timeout 5 icanhazip.com 2>/dev/null || hostname -I | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1 | grep -v '^$' || echo "НЕИЗВЕСТНО")
 
 # Функция для красивого вывода с поддержкой UTF-8
 print_info() {
