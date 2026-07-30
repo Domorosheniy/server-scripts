@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+# Устанавливаем правильную кодировку для всего скрипта
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
 # Создаём папку для логов, если её нет
 mkdir -p /var/log
 
@@ -11,6 +15,14 @@ echo "=== НАСТРОЙКА СЕРВЕРА ==="
 echo "Скрипт настроит сервер с вашими параметрами"
 echo "==========================================="
 date
+
+# Проверка поддержки UTF-8 в терминале
+USE_UTF8=false
+if command -v locale &> /dev/null; then
+    if locale -a 2>/dev/null | grep -qi "utf-8\|utf8"; then
+        USE_UTF8=true
+    fi
+fi
 
 # Проверяем, установлен ли git. Если нет — устанавливаем
 if ! command -v git &> /dev/null; then
@@ -137,6 +149,17 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# Проверка интернета перед началом
+echo "[*] Проверка интернета..."
+if ! ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
+    echo "[!] Предупреждение: Нет доступа в интернет. Пакеты могут не установиться."
+    read -p "Продолжить? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
 # ========== ОСНОВНАЯ ЧАСТЬ ==========
 
 echo "[1/8] Настройка времени..."
@@ -210,6 +233,14 @@ else
     fi
 fi
 
+# Добавляем дополнительные настройки безопасности
+if ! grep -q "^MaxSessions " "$SSH_CONFIG"; then
+    echo "MaxSessions 30" >> "$SSH_CONFIG"
+fi
+if ! grep -q "^MaxStartups " "$SSH_CONFIG"; then
+    echo "MaxStartups 30:30:60" >> "$SSH_CONFIG"
+fi
+
 # Перезапускаем SSH
 systemctl restart ssh
 
@@ -260,8 +291,13 @@ echo "[✓] Открыты веб порты: 80, 443, 8080"
 # Дополнительные порты
 for port in $INBOUND_PORTS; do
     if [ "$port" != "443" ]; then  # 443 уже открыт
-        ufw allow "$port/tcp" comment "Дополнительный порт"
-        echo "[✓] Открыт порт: $port"
+        # Проверяем, не открыт ли уже порт
+        if ! ufw status | grep -q "$port/tcp"; then
+            ufw allow "$port/tcp" comment "Дополнительный порт"
+            echo "[✓] Открыт порт: $port"
+        else
+            echo "[*] Порт $port уже открыт, пропускаем"
+        fi
     fi
 done
 
@@ -309,35 +345,67 @@ fi
 
 # 7. Финальные настройки
 echo "[8/8] Финальные настройки..."
-# Увеличиваем лимиты для SSH
-echo "MaxSessions 30" >> /etc/ssh/sshd_config
-echo "MaxStartups 30:30:60" >> /etc/ssh/sshd_config
-systemctl restart ssh
 
 # ========== ИНФОРМАЦИЯ ДЛЯ ПОЛЬЗОВАТЕЛЯ ==========
+
 echo ""
-echo "==========================================="
-echo "НАСТРОЙКА ЗАВЕРШЕНА УСПЕШНО!"
-echo "==========================================="
+echo "============================================"
+echo "        НАСТРОЙКА ЗАВЕРШЕНА УСПЕШНО!        "
+echo "============================================"
 echo ""
-IP_ADDRESS=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
-echo "╔══════════════════════════════════════════╗"
-echo "║           ИНФОРМАЦИЯ ДЛЯ ДОСТУПА         ║"
-echo "╠══════════════════════════════════════════╣"
-echo "║ Сервер: $IP_ADDRESS"
-echo "║ Пользователь: $USER_NAME"
-echo "║ SSH порт: $SSH_PORT"
-echo "║"
-echo "║ КОМАНДА ДЛЯ ПОДКЛЮЧЕНИЯ:"
-echo "║ ssh -p $SSH_PORT $USER_NAME@$IP_ADDRESS"
-echo "║"
-echo "║ Открытые порты:"
-echo "║ • SSH: $SSH_PORT"
-echo "║ • Веб: 80, 443, 8080"
-if [ -n "$INBOUND_PORTS" ]; then
-    echo "║ • Дополнительно: $INBOUND_PORTS"
+
+# Получаем IP адрес
+IP_ADDRESS=""
+if command -v curl &> /dev/null; then
+    IP_ADDRESS=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
 fi
-echo "╚══════════════════════════════════════════╝"
+if [ -z "$IP_ADDRESS" ]; then
+    IP_ADDRESS=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "НЕИЗВЕСТНО")
+fi
+
+# Функция для красивого вывода с поддержкой UTF-8
+print_info() {
+    if [ "$USE_UTF8" = true ]; then
+        echo "╔══════════════════════════════════════════╗"
+        echo "║           ИНФОРМАЦИЯ ДЛЯ ДОСТУПА         ║"
+        echo "╠══════════════════════════════════════════╣"
+        echo "║ Сервер:       $IP_ADDRESS"
+        echo "║ Пользователь: $USER_NAME"
+        echo "║ SSH порт:     $SSH_PORT"
+        echo "║"
+        echo "║ КОМАНДА ДЛЯ ПОДКЛЮЧЕНИЯ:"
+        echo "║ ssh -p $SSH_PORT $USER_NAME@$IP_ADDRESS"
+        echo "║"
+        echo "║ Открытые порты:"
+        echo "║ • SSH:  $SSH_PORT"
+        echo "║ • Веб:  80, 443, 8080"
+        if [ -n "$INBOUND_PORTS" ]; then
+            echo "║ • Доп:  $INBOUND_PORTS"
+        fi
+        echo "╚══════════════════════════════════════════╝"
+    else
+        echo "============================================"
+        echo "           ИНФОРМАЦИЯ ДЛЯ ДОСТУПА            "
+        echo "============================================"
+        echo "Сервер:       $IP_ADDRESS"
+        echo "Пользователь: $USER_NAME"
+        echo "SSH порт:     $SSH_PORT"
+        echo ""
+        echo "КОМАНДА ДЛЯ ПОДКЛЮЧЕНИЯ:"
+        echo "ssh -p $SSH_PORT $USER_NAME@$IP_ADDRESS"
+        echo ""
+        echo "Открытые порты:"
+        echo "  • SSH:  $SSH_PORT"
+        echo "  • Веб:  80, 443, 8080"
+        if [ -n "$INBOUND_PORTS" ]; then
+            echo "  • Доп:  $INBOUND_PORTS"
+        fi
+        echo "============================================"
+    fi
+}
+
+print_info
+
 echo ""
 echo "⚠️  СОХРАНИТЕ ЭТУ ИНФОРМАЦИЮ!"
 echo ""
@@ -360,6 +428,7 @@ ssh -p $SSH_PORT $USER_NAME@$IP_ADDRESS
 - HTTP: 80
 - HTTPS: 443
 - Доп. веб: 8080
+Дополнительные порты:
 $(for port in $INBOUND_PORTS; do echo "- $port"; done)
 
 ВАЖНО:
@@ -367,6 +436,13 @@ $(for port in $INBOUND_PORTS; do echo "- $port"; done)
 2. Root доступ по SSH запрещён
 3. Настроен fail2ban для защиты
 4. Все настройки сохранены в /var/log/setup_server.log
+
+НАСТРОЙКИ SSH:
+- PubkeyAuthentication: yes
+- PasswordAuthentication: yes
+- PermitRootLogin: no
+- ClientAliveInterval: 300
+- ClientAliveCountMax: 2
 EOF
 
 echo "[✓] Подробная информация сохранена в: $INFO_FILE"
@@ -374,4 +450,4 @@ echo "[✓] Логи настройки: /var/log/setup_server.log"
 echo ""
 echo "Для применения всех настроек рекомендуется перезагрузить сервер:"
 echo "sudo reboot"
-echo "==========================================="
+echo "============================================"
