@@ -360,7 +360,7 @@ if command -v curl &> /dev/null; then
     IP_ADDRESS=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
 fi
 if [ -z "$IP_ADDRESS" ]; then
-    IP_ADDRESS=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "НЕИЗВЕСТНО")
+    IP_ADDRESS=$(hostname -I | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1 2>/dev/null || echo "НЕИЗВЕСТНО")
 fi
 
 # Функция для красивого вывода с поддержкой UTF-8
